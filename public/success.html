@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Successful</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #f0fdf4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 48px 40px;
+            text-align: center;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            max-width: 400px;
+            width: 90%;
+        }
+        .icon {
+            width: 64px;
+            height: 64px;
+            background: #dcfce7;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+        }
+        .icon svg { width: 32px; height: 32px; }
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #15803d;
+            margin-bottom: 12px;
+        }
+        p {
+            color: #6b7280;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        .spinner {
+            margin-top: 24px;
+            font-size: 0.85rem;
+            color: #9ca3af;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+        </div>
+        <h1>Payment Successful!</h1>
+        <p>Your order is being processed. You'll be redirected in a moment...</p>
+        <p class="spinner">Please don't close this window.</p>
+    </div>
+
+    <script>
+        (function() {
+            // Fire postMessage to the parent Scalr checkout window
+            if (window.opener && !window.opener.closed) {
+                window.opener.postMessage({ type: 'YOCO_PAYMENT_SUCCESS' }, '*');
+            }
+
+            // Give parent window time to process (click hidden button, log order)
+            // then redirect this popup to the upsell page
+            setTimeout(function() {
+                window.location.href = 'https://www.activatord.store/upsell-6-pack';
+            }, 2000);
+        })();
+    </script>
+</body>
+</html>
