@@ -1,7 +1,7 @@
 {
     "name": "activatord-yoco",
     "version": "1.0.0",
-    "description": "Yoco checkout bridge for ActivatorD on Scalr/Systeme.io",
+    "description": "Yoco checkout bridge for ActivatorD",
     "engines": {
         "node": "24.x"
     }

@@ -2,7 +2,105 @@
 (function() {
     var VERCEL_FUNCTION_URL = 'https://activatord-yoco.vercel.app/api/create-checkout';
     var CANCEL_URL = 'https://www.activatord.store/fixmypool-checkout';
+    var UPSELL_URL = 'https://www.activatord.store/upsell-6-pack';
 
+    // Inject modal overlay styles
+    var style = document.createElement('style');
+    style.textContent = [
+        '#yoco-modal-overlay {',
+        '  display: none;',
+        '  position: fixed;',
+        '  top: 0; left: 0; right: 0; bottom: 0;',
+        '  background: rgba(0,0,0,0.75);',
+        '  z-index: 999999;',
+        '  align-items: center;',
+        '  justify-content: center;',
+        '}',
+        '#yoco-modal-overlay.active { display: flex; }',
+        '#yoco-modal-box {',
+        '  background: white;',
+        '  border-radius: 12px;',
+        '  width: 90%;',
+        '  max-width: 480px;',
+        '  height: 620px;',
+        '  max-height: 90vh;',
+        '  position: relative;',
+        '  overflow: hidden;',
+        '  box-shadow: 0 25px 50px rgba(0,0,0,0.3);',
+        '}',
+        '#yoco-modal-close {',
+        '  position: absolute;',
+        '  top: 10px; right: 14px;',
+        '  font-size: 24px;',
+        '  cursor: pointer;',
+        '  color: #6b7280;',
+        '  z-index: 10;',
+        '  background: white;',
+        '  border: none;',
+        '  line-height: 1;',
+        '  padding: 4px 8px;',
+        '  border-radius: 4px;',
+        '}',
+        '#yoco-modal-close:hover { color: #111; }',
+        '#yoco-iframe {',
+        '  width: 100%;',
+        '  height: 100%;',
+        '  border: none;',
+        '}'
+    ].join('');
+    document.head.appendChild(style);
+
+    // Build modal HTML
+    var overlay = document.createElement('div');
+    overlay.id = 'yoco-modal-overlay';
+    overlay.innerHTML = [
+        '<div id="yoco-modal-box">',
+        '  <button id="yoco-modal-close" title="Close">&times;</button>',
+        '  <iframe id="yoco-iframe" allowpaymentrequest="true"></iframe>',
+        '</div>'
+    ].join('');
+    document.body.appendChild(overlay);
+
+    // Close button
+    document.getElementById('yoco-modal-close').addEventListener('click', function() {
+        closeModal();
+    });
+
+    // Close on overlay click
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) closeModal();
+    });
+
+    function openModal(url) {
+        document.getElementById('yoco-iframe').src = url;
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+        overlay.classList.remove('active');
+        document.getElementById('yoco-iframe').src = '';
+        document.body.style.overflow = '';
+    }
+
+    // Listen for success message from success.html inside iframe
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'YOCO_PAYMENT_SUCCESS') {
+            closeModal();
+            var nativeBtn = document.getElementById('paymentbutton-34471d36');
+            if (nativeBtn) {
+                setTimeout(function() {
+                    nativeBtn.click();
+                    // Redirect to upsell after order is logged
+                    setTimeout(function() {
+                        window.location.href = UPSELL_URL;
+                    }, 1000);
+                }, 150);
+            }
+        }
+    });
+
+    // Wait for button to exist
     var runBridgeCheck = setInterval(function() {
         var customBtn = document.getElementById('inline-pay-btn');
         var nativeBtn = document.getElementById('paymentbutton-34471d36');
@@ -10,30 +108,22 @@
         if (customBtn && nativeBtn) {
             clearInterval(runBridgeCheck);
 
-            // Poll localStorage for payment success signal
-            var pollForSuccess = setInterval(function() {
-                if (localStorage.getItem('yoco_payment_success') === 'true') {
-                    localStorage.removeItem('yoco_payment_success');
-                    clearInterval(pollForSuccess);
-                    setTimeout(function() {
-                        nativeBtn.click();
-                    }, 150);
-                }
-            }, 500);
-
             customBtn.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
 
+                // Read fields at click time
                 var firstVal  = (document.querySelector('input[name="first_name"]') || {}).value || '';
                 var lastVal   = (document.querySelector('input[name="surname"]') || {}).value || '';
                 var emailVal  = (document.querySelector('input[name="email"]') || {}).value || '';
-                var checkbox  = document.querySelector('input[data-dashlane-classification="consent,terms"]');
+                
+                // Checkbox - try multiple selectors for mobile compatibility
+                var checkbox = document.querySelector('input[type="checkbox"]');
                 var isChecked = checkbox ? checkbox.checked : false;
 
-                firstVal  = firstVal.trim();
-                lastVal   = lastVal.trim();
-                emailVal  = emailVal.trim();
+                firstVal = firstVal.trim();
+                lastVal  = lastVal.trim();
+                emailVal = emailVal.trim();
 
                 if (!firstVal) {
                     alert('Please enter your First Name to continue.');
@@ -70,9 +160,11 @@
 
                 var priceInCents = Math.round(totalAmountZAR * 100);
 
+                // Loading state
                 customBtn.disabled = true;
                 customBtn.querySelector('span').textContent = 'Processing...';
 
+                // Call Vercel function
                 fetch(VERCEL_FUNCTION_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -84,25 +176,16 @@
                 })
                 .then(function(res) { return res.json(); })
                 .then(function(data) {
-                    if (data.error) {
-                        alert('Could not initiate payment: ' + data.error);
-                        customBtn.disabled = false;
-                        customBtn.querySelector('span').textContent = 'Complete Secure Checkout';
-                        return;
-                    }
-
-                    var popup = window.open(
-                        data.redirectUrl,
-                        'YocoCheckout',
-                        'width=520,height=680,left=' + ((screen.width - 520) / 2) + ',top=' + ((screen.height - 680) / 2)
-                    );
-
                     customBtn.disabled = false;
                     customBtn.querySelector('span').textContent = 'Complete Secure Checkout';
 
-                    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-                        window.location.href = data.redirectUrl;
+                    if (data.error) {
+                        alert('Could not initiate payment: ' + data.error);
+                        return;
                     }
+
+                    // Open Yoco in iframe modal
+                    openModal(data.redirectUrl);
                 })
                 .catch(function(err) {
                     console.error('Checkout error:', err);
@@ -113,5 +196,6 @@
             });
         }
     }, 200);
+
 })();
 </script>

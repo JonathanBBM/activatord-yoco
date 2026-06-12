@@ -34,22 +34,9 @@
             margin: 0 auto 24px;
         }
         .icon svg { width: 32px; height: 32px; }
-        h1 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #15803d;
-            margin-bottom: 12px;
-        }
-        p {
-            color: #6b7280;
-            font-size: 0.95rem;
-            line-height: 1.6;
-        }
-        .spinner {
-            margin-top: 24px;
-            font-size: 0.85rem;
-            color: #9ca3af;
-        }
+        h1 { font-size: 1.5rem; font-weight: 700; color: #15803d; margin-bottom: 12px; }
+        p { color: #6b7280; font-size: 0.95rem; line-height: 1.6; }
+        .spinner { margin-top: 24px; font-size: 0.85rem; color: #9ca3af; }
     </style>
 </head>
 <body>
@@ -65,27 +52,25 @@
     </div>
 
     <script>
-(function() {
-    // Try postMessage for popup scenario
-    if (window.opener && !window.opener.closed) {
-        window.opener.postMessage({ type: 'YOCO_PAYMENT_SUCCESS' }, '*');
-    }
+        (function() {
+            // Signal parent window (iframe or opener) that payment succeeded
+            try {
+                if (window.parent && window.parent !== window) {
+                    // We're in an iframe - message the parent
+                    window.parent.postMessage({ type: 'YOCO_PAYMENT_SUCCESS' }, '*');
+                } else if (window.opener && !window.opener.closed) {
+                    // We're in a popup window - message the opener
+                    window.opener.postMessage({ type: 'YOCO_PAYMENT_SUCCESS' }, '*');
+                }
+            } catch(e) {
+                console.log('postMessage error:', e);
+            }
 
-    // Also write to localStorage for new tab scenario
-    // Uses BroadcastChannel to signal same-origin tabs
-    try {
-        var bc = new BroadcastChannel('yoco_payment');
-        bc.postMessage({ type: 'YOCO_PAYMENT_SUCCESS' });
-        bc.close();
-    } catch(e) {}
-
-    // Fallback: write to localStorage
-    localStorage.setItem('yoco_payment_success', 'true');
-
-    setTimeout(function() {
-        window.location.href = 'https://www.activatord.store/upsell-6-pack';
-    }, 2000);
-})();
-</script>
+            // Redirect to upsell after 2 seconds
+            setTimeout(function() {
+                window.location.href = 'https://www.activatord.store/upsell-6-pack';
+            }, 2000);
+        })();
+    </script>
 </body>
 </html>
