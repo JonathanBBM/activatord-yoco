@@ -47,8 +47,8 @@
             </svg>
         </div>
         <h1>Payment Successful!</h1>
-        <p>Your order is being processed. You'll be redirected in a moment...</p>
-        <p class="spinner">Please don't close this window.</p>
+        <p>Please wait while we process your order.</p>
+        <p class="spinner">This will only take a moment&hellip;</p>
     </div>
 
     <script>
@@ -65,11 +65,7 @@
             } catch(e) {
                 console.log('postMessage error:', e);
             }
-
-            // Redirect to upsell after 2 seconds
-            setTimeout(function() {
-                window.location.href = 'https://www.activatord.store/upsell-6-pack';
-            }, 2000);
+            // No redirect here - parent page handles all redirects
         })();
     </script>
 </body>
