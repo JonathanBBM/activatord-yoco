@@ -1,3 +1,5 @@
+import { buildCheckoutMetadata } from '../lib/shipping-metadata.js';
+
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -12,10 +14,22 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { amountInCents, currency, cancelUrl } = req.body;
+    const { amountInCents, currency, cancelUrl, order } = req.body;
 
     if (!amountInCents || !currency) {
         return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Delivery details for Bob Go travel inside the Yoco checkout as metadata,
+    // and come back to /api/yoco-webhook once Yoco confirms the payment.
+    // Checkouts without `order` behave exactly as before.
+    let metadata;
+    if (order) {
+        const built = buildCheckoutMetadata(order);
+        if (built.error) {
+            return res.status(400).json({ error: built.error });
+        }
+        metadata = built.metadata;
     }
 
     const secretKey = process.env.YOCO_SECRET_KEY;
@@ -38,7 +52,8 @@ export default async function handler(req, res) {
                 currency: currency,
                 successUrl: successUrl,
                 cancelUrl: cancelUrl || successUrl,
-                failureUrl: cancelUrl || successUrl
+                failureUrl: cancelUrl || successUrl,
+                ...(metadata ? { metadata } : {})
             })
         });
 

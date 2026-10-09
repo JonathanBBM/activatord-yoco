@@ -4,6 +4,50 @@
     var CANCEL_URL = 'https://www.activatord.store/fixmypool-checkout';
     var UPSELL_URL = 'https://www.activatord.store/upsell-6-pack';
 
+    // --- Bob Go shipping ---
+    // Product code sent to the server; must match a key in lib/catalog.js.
+    var PRODUCT_CODE = 'single'; // one unit, R297 incl. delivery
+    // Quantity is read from the page at click time (falls back to 1).
+    function readQty() {
+        var el = document.querySelector('input[name*="quantity" i], select[name*="quantity" i]');
+        var n = el ? parseInt(el.value, 10) : 1;
+        return n > 0 ? n : 1;
+    }
+    // Systeme.io order-form input names. If a field isn't found, run
+    // ActivatorDShipping.listInputs() in the browser console on this page.
+    var SHIP_FIELDS = {
+        phone:    ['phone_number', 'phone'],
+        street:   ['street_address', 'address'],
+        suburb:   ['suburb', 'local_area'],
+        city:     ['city'],
+        province: ['state', 'province'],
+        postcode: ['postcode', 'zip', 'postal_code']
+    };
+    var SHIP_STORE_KEY = 'actd_ship_v1'; // the upsell page reuses these details
+
+    function readField(names) {
+        for (var i = 0; i < names.length; i++) {
+            var el = document.querySelector('[name="' + names[i] + '"]');
+            if (el && el.value && el.value.trim()) return el.value.trim();
+        }
+        return '';
+    }
+
+    function newOrderRef() {
+        return 'ACT-' + Date.now().toString(36).toUpperCase() + '-' +
+            Math.random().toString(36).slice(2, 6).toUpperCase();
+    }
+
+    window.ActivatorDShipping = {
+        listInputs: function() {
+            var rows = [];
+            document.querySelectorAll('input, select, textarea').forEach(function(el) {
+                if (el.type !== 'hidden') rows.push({ name: el.name, id: el.id, placeholder: el.placeholder });
+            });
+            console.table(rows);
+        }
+    };
+
     // Inject modal overlay styles
     var style = document.createElement('style');
     style.textContent = [
@@ -137,10 +181,34 @@
                     alert('Please enter your Email address to continue.');
                     return;
                 }
+                var shipping = {
+                    firstName: firstVal,
+                    surname:   lastVal,
+                    email:     emailVal,
+                    phone:     readField(SHIP_FIELDS.phone),
+                    street:    readField(SHIP_FIELDS.street),
+                    suburb:    readField(SHIP_FIELDS.suburb),
+                    city:      readField(SHIP_FIELDS.city),
+                    province:  readField(SHIP_FIELDS.province),
+                    postcode:  readField(SHIP_FIELDS.postcode)
+                };
+                var shipLabels = { phone: 'Phone Number', street: 'Street Address', city: 'City', postcode: 'Postal Code' };
+                for (var key in shipLabels) {
+                    if (!shipping[key]) {
+                        alert('Please enter your ' + shipLabels[key] + ' so we can deliver your order.');
+                        return;
+                    }
+                }
+
                 if (!isChecked) {
                     alert('Please accept the Terms and Conditions to continue.');
                     return;
                 }
+
+                var order = { orderRef: newOrderRef(), product: PRODUCT_CODE, qty: readQty(), shipping: shipping };
+                try {
+                    sessionStorage.setItem(SHIP_STORE_KEY, JSON.stringify({ orderRef: order.orderRef, shipping: shipping }));
+                } catch (err) {}
 
                 // --- PRICE SCRAPER ---
                 var totalAmountZAR = 0;
@@ -171,7 +239,8 @@
                     body: JSON.stringify({
                         amountInCents: priceInCents,
                         currency: 'ZAR',
-                        cancelUrl: CANCEL_URL
+                        cancelUrl: CANCEL_URL,
+                        order: order
                     })
                 })
                 .then(function(res) { return res.json(); })
