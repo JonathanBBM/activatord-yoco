@@ -234,5 +234,48 @@ const goodOrder = {
     assert.strictEqual(calls.length, 0);
   });
 
+  console.log("One-time Yoco setup page");
+  const setupHandler = (await import("../api/setup-yoco-webhook.js")).default;
+  function htmlRes() { return { statusCode: 0, body: "", setHeader() {}, end(b) { this.body = b || ""; } }; }
+
+  await test("switched off when SETUP_TOKEN isn't set", async () => {
+    delete process.env.SETUP_TOKEN;
+    mockFetch([]);
+    const res = htmlRes();
+    await setupHandler({ url: "/api/setup-yoco-webhook?token=anything" }, res);
+    assert.strictEqual(res.statusCode, 404);
+    assert.strictEqual(calls.length, 0);
+  });
+  await test("wrong token gets a 404 and calls nothing", async () => {
+    process.env.SETUP_TOKEN = "correct-horse-battery";
+    mockFetch([]);
+    const res = htmlRes();
+    await setupHandler({ url: "/api/setup-yoco-webhook?token=wrong" }, res);
+    assert.strictEqual(res.statusCode, 404);
+    assert.strictEqual(calls.length, 0);
+  });
+  await test("correct token registers the webhook and shows the secret", async () => {
+    mockFetch([
+      ["payments.yoco.com/api/webhooks", { method: "GET", status: 200, body: { subscriptions: [] } }],
+      ["payments.yoco.com/api/webhooks", { method: "POST", status: 200, body: { id: "sub_1", mode: "live", secret: "whsec_TESTSECRET" } }],
+    ]);
+    const res = htmlRes();
+    await setupHandler({ url: "/api/setup-yoco-webhook?token=correct-horse-battery" }, res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.ok(res.body.includes("whsec_TESTSECRET"));
+    const post = calls.find((c) => c.method === "POST");
+    assert.strictEqual(post.body.url, "https://activatord-yoco.vercel.app/api/yoco-webhook");
+    assert.strictEqual(post.headers.Authorization, "Bearer sk_test_x");
+  });
+  await test("doesn't replace an existing webhook unless asked", async () => {
+    mockFetch([["payments.yoco.com/api/webhooks", { method: "GET", status: 200,
+      body: { subscriptions: [{ id: "sub_1", url: "https://activatord-yoco.vercel.app/api/yoco-webhook" }] } }]]);
+    const res = htmlRes();
+    await setupHandler({ url: "/api/setup-yoco-webhook?token=correct-horse-battery" }, res);
+    assert.ok(res.body.includes("Already registered"));
+    assert.ok(!calls.some((c) => c.method === "DELETE" || c.method === "POST"));
+  });
+  delete process.env.SETUP_TOKEN;
+
   console.log(`\n${passed} passed${process.exitCode ? ", some FAILED" : ""}`);
 })();

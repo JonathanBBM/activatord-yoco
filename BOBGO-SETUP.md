@@ -25,7 +25,7 @@ Checkouts sent without delivery details behave exactly as before.
 | `lib/` | New helpers. **Fill in `lib/catalog.js`** with real weights and box sizes. Prices come from the page. |
 | `snippets/upsell-order.js` | Two small additions for the upsell page's own script. |
 | `scripts/register-webhooks.js` | One-off webhook registration with Yoco and Bob Go. |
-| `test/run-tests.js` | `npm test` — 19 offline tests. |
+| `test/run-tests.js` | `npm test` — 23 offline tests. |
 | `.env.example` | Every environment variable, with notes. |
 
 ## Setup, in order

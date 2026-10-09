@@ -13,22 +13,40 @@
         var n = el ? parseInt(el.value, 10) : 1;
         return n > 0 ? n : 1;
     }
-    // Systeme.io order-form input names. If a field isn't found, run
-    // ActivatorDShipping.listInputs() in the browser console on this page.
+    // How each delivery field is found on the order form.
+    // `names`: Systeme.io field types. These are the same on every Scalr order
+    //          form, so this script works on other pages without changes.
+    // `ids`:   element IDs from THIS page's builder, used only as a backup.
+    //          On another page, update or delete them; nothing breaks if
+    //          they don't exist.
     var SHIP_FIELDS = {
-        phone:    ['phone_number', 'phone'],
-        street:   ['street_address', 'address'],
-        suburb:   ['suburb', 'local_area'],
-        city:     ['city'],
-        province: ['state', 'province'],
-        postcode: ['postcode', 'zip', 'postal_code']
+        phone:    { names: ['phone_number', 'phone'],               ids: ['form-input-ce0f45f4'] },
+        street:   { names: ['street_address', 'address'],           ids: ['form-input-1ad089f4'] },
+        suburb:   { names: ['suburb', 'local_area'],                ids: [] },
+        city:     { names: ['city'],                                ids: ['field-ab6d630a'] },
+        province: { names: ['state', 'province'],                   ids: ['field-1a39c50d'] },
+        postcode: { names: ['postcode', 'zip', 'postal_code'],      ids: ['form-input-3331a876'] }
     };
     var SHIP_STORE_KEY = 'actd_ship_v1'; // the upsell page reuses these details
 
-    function readField(names) {
-        for (var i = 0; i < names.length; i++) {
-            var el = document.querySelector('[name="' + names[i] + '"]');
-            if (el && el.value && el.value.trim()) return el.value.trim();
+    // An ID may sit on the input itself or on the box around it.
+    function valueOf(el) {
+        if (!el) return '';
+        if (!('value' in el) || el.tagName === 'DIV') {
+            el = el.querySelector('input, select, textarea');
+        }
+        return el && el.value ? String(el.value).trim() : '';
+    }
+
+    function readField(spec) {
+        var i, v;
+        for (i = 0; i < spec.names.length; i++) {
+            v = valueOf(document.querySelector('[name="' + spec.names[i] + '"]'));
+            if (v) return v;
+        }
+        for (i = 0; i < spec.ids.length; i++) {
+            v = valueOf(document.getElementById(spec.ids[i]));
+            if (v) return v;
         }
         return '';
     }
